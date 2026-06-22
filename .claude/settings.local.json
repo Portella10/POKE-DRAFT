@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell($env:Path = \"C:\\\\Program Files\\\\nodejs;$env:Path\"; npx vitest run --coverage 2>&1 | Select-String -Pattern \"Test Files|Tests |% Stmts|src/data|src/game|All files|ERROR|threshold\")",
+      "PowerShell($env:Path = \"C:\\\\Program Files\\\\nodejs;$env:Path\"; npx vitest run src/store/gameStore.test.ts)",
+      "PowerShell($env:Path = \"C:\\\\Program Files\\\\nodejs;$env:Path\"; npx vitest run src/store/gameStore.test.ts src/game/battle.test.ts)",
+      "PowerShell($env:Path = \"C:\\\\Program Files\\\\nodejs;$env:Path\"; npx vitest run --coverage 2>&1 | Select-String -Pattern \"Tests |% Stmts|gameStore|battle.ts|All files|threshold|ERROR\")",
+      "PowerShell($env:Path = \"C:\\\\Program Files\\\\nodejs;$env:Path\"; npm run typecheck)"
+    ]
+  }
+}
