@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { rollChoices, sheetFromSpecies, genRivalSheet } from './draft';
 import { isComplete } from './sheet';
+import { stageForRound } from './champion';
+import { powerOf } from './cost';
 import { DRAFT_POOL, SPECIES } from '../data/species';
 import { ROUNDS, FINAL_ROUND_IDX } from '../data/rounds';
 import { mulberry32 } from './rng';
@@ -41,5 +43,16 @@ describe('genRivalSheet', () => {
 
   it('is deterministic for the same seed', () => {
     expect(genRivalSheet(2, mulberry32(11)).line).toEqual(genRivalSheet(2, mulberry32(11)).line);
+  });
+
+  it('scales the rival toward a requested target power', () => {
+    const round = 2;
+    const lvl = ROUNDS[round].avgLevel;
+    const rivalPower = (target: number) => {
+      const s = genRivalSheet(round, mulberry32(3), target);
+      return powerOf(s, lvl, stageForRound(s.line!, round));
+    };
+    // A higher target should yield a meaningfully stronger rival than a low one.
+    expect(rivalPower(900)).toBeGreaterThan(rivalPower(150));
   });
 });

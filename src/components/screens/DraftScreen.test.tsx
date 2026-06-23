@@ -25,14 +25,23 @@ describe('DraftScreen', () => {
     expect(screen.getAllByRole('button', { name: /Pegar/ })).toHaveLength(21);
   });
 
-  it('taking an attribute fills the slot and advances the round', async () => {
+  it('taking an attribute fills the slot, spends PD and advances the round', async () => {
+    const before = useGameStore.getState().budget;
     render(<DraftScreen />);
     await userEvent.click(
-      screen.getByRole('button', { name: `Pegar Ataque ${SPECIES.machop.base.atk} de Machop` }),
+      screen.getByRole('button', { name: new RegExp(`Pegar Ataque ${SPECIES.machop.base.atk} de Machop`) }),
     );
     expect(useGameStore.getState().sheet.atk).toBe(SPECIES.machop.base.atk);
     expect(useGameStore.getState().sheet.sources.atk).toBe('machop');
     expect(useGameStore.getState().choiceRound).toBe(1);
+    expect(useGameStore.getState().budget).toBeLessThan(before);
+  });
+
+  it('blocks a pick the player cannot afford', async () => {
+    useGameStore.setState({ budget: 3, choices: ['charmander', 'squirtle', 'machop'] });
+    render(<DraftScreen />);
+    const expensive = screen.getByRole('button', { name: /Pegar Ataque 80 de Machop/ });
+    expect(expensive).toBeDisabled();
   });
 
   it('disables an attribute chip once its slot is filled', () => {

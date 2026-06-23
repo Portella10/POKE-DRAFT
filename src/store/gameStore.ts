@@ -16,6 +16,7 @@ import {
 } from '../game/sheet';
 import { rollChoices, genRivalSheet } from '../game/draft';
 import { stageForRound } from '../game/champion';
+import { DRAFT_BUDGET, slotCost, canAfford, powerOf } from '../game/cost';
 import { buildChampion, initDuel, autoTurn, autoFinish, type DuelState } from '../game/battle';
 import { ROUNDS, FINAL_ROUND_IDX } from '../data/rounds';
 
@@ -27,6 +28,7 @@ export const TOTAL_PICKS = 7; // one per sheet slot
 export interface GameData {
   screen: Screen;
   sheet: Sheet;
+  budget: number; // Draft Points still available to spend
   choiceRound: number; // picks made so far (0..7)
   choices: string[]; // the 3 basic forms shown now
   roundIdx: number;
@@ -59,6 +61,7 @@ export function freshData(): GameData {
   return {
     screen: 'start',
     sheet: emptySheet(),
+    budget: DRAFT_BUDGET,
     choiceRound: 0,
     choices: [],
     roundIdx: 0,
@@ -94,6 +97,7 @@ export const useGameStore = create<GameStore>()(
             seed: get().seed,
             screen: 'draft',
             sheet: emptySheet(),
+            budget: DRAFT_BUDGET,
             choiceRound: 0,
             choices: rollChoices(rng),
           });
@@ -105,21 +109,30 @@ export const useGameStore = create<GameStore>()(
         },
 
         chooseAttribute: (slot, speciesId) => {
-          const sheet = takeAttribute(get().sheet, slot, speciesId);
+          const current = get().sheet;
+          const budget = get().budget;
+          // Guard the budget: ignore picks that can't be afforded (UI also blocks).
+          if (!canAfford(current, budget, slot, speciesId)) return;
+          const sheet = takeAttribute(current, slot, speciesId);
+          const remaining = budget - slotCost(speciesId, slot);
           const picks = get().choiceRound + 1;
           const rng = takeRng();
           if (isComplete(sheet)) {
+            const round = ROUNDS[0];
+            const target =
+              powerOf(sheet, round.avgLevel, stageForRound(sheet.line!, 0)) * round.difficulty;
             set({
               sheet,
+              budget: remaining,
               choiceRound: picks,
               choices: [],
               roundIdx: 0,
-              rivalSheet: genRivalSheet(0, rng),
+              rivalSheet: genRivalSheet(0, rng, target),
               screen: 'arena',
             });
             return;
           }
-          set({ sheet, choiceRound: picks, choices: rollChoices(rng) });
+          set({ sheet, budget: remaining, choiceRound: picks, choices: rollChoices(rng) });
         },
 
         startRound: () => {
@@ -130,7 +143,7 @@ export const useGameStore = create<GameStore>()(
           const player = buildChampion(sheet, round.avgLevel, stageForRound(sheet.line!, round.idx));
           const ai = buildChampion(
             rivalSheet,
-            round.avgLevel,
+            round.avgLevel + (round.bossLevelBonus ?? 0),
             stageForRound(rivalSheet.line!, round.idx),
           );
           set({ duel: initDuel(player, ai), screen: 'battle', autoPlaying: true, lastResult: null });
@@ -180,9 +193,13 @@ export const useGameStore = create<GameStore>()(
           }
           const nextRound = get().roundIdx + 1;
           const rng = takeRng();
+          const round = ROUNDS[nextRound];
+          const sheet = get().sheet;
+          const target =
+            powerOf(sheet, round.avgLevel, stageForRound(sheet.line!, nextRound)) * round.difficulty;
           set({
             roundIdx: nextRound,
-            rivalSheet: genRivalSheet(nextRound, rng),
+            rivalSheet: genRivalSheet(nextRound, rng, target),
             duel: null,
             autoPlaying: false,
             screen: 'arena',
@@ -192,11 +209,12 @@ export const useGameStore = create<GameStore>()(
     },
     {
       name: 'poke-draft-cup',
-      version: 3,
+      version: 4,
       migrate: () => freshData(), // older saves use an incompatible model
       partialize: (s): GameData => ({
         screen: s.screen,
         sheet: s.sheet,
+        budget: s.budget,
         choiceRound: s.choiceRound,
         choices: s.choices,
         roundIdx: s.roundIdx,

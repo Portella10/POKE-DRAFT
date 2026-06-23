@@ -6,22 +6,36 @@ campeonato eliminatório de 5 rodadas em **duelos 1v1 automáticos e animados**.
 Construído com **TDD estrito** e uma **pirâmide de testes** (base larga de unitários, camada média
 de integração/componentes, topo fino de e2e).
 
-## A ideia: monte seu campeão, atributo por atributo
+## A ideia: monte seu campeão dentro de um orçamento
 
 Sua **ficha** tem 7 slots: **Vida, Ataque, Defesa, Velocidade, Tipo, Habilidade e Linha Evolutiva**.
 Em **7 rodadas de escolha**, aparecem **3 Pokémon** (com sprite e todos os atributos visíveis) e você
 pega **um atributo ainda vazio** de **um** deles. Cada slot só uma vez → seu campeão é um
 "Frankenstein" estratégico.
 
+**O peso de cada atributo — o Orçamento de Draft.** Cada atributo tem um **custo em Pontos de Draft
+(PD)** proporcional à sua força, e você começa com um orçamento fixo (`DRAFT_BUDGET`). Pegar tudo no
+máximo custaria muito mais do que você tem, então **cada escolha é um trade-off real**: a Vida do
+Snorlax te deixa sem PD para um Ataque alto; um tipo defensivo (Aço/Voador) é caro; uma linha de 3
+estágios pesa no bolso. O custo de cada slot vive em [`src/game/cost.ts`](src/game/cost.ts), é puro e
+testado, e nunca te deixa "travar" (sempre sobra PD para completar a ficha — basta gastar com cabeça).
+
 **Tudo conta:** a força (os status que você pega), o estilo (Tipo), a Habilidade (efeito de batalha)
 e **se a evolução é boa**. A Linha Evolutiva define o sprite e dá um **pico de poder** conforme você
 avança — uma linha de 3 estágios evolui 2x (forte no fim), uma de 1 estágio não evolui. Detalhe: um
 Pokémon pode ter status fracos mas uma evolução excelente (ex.: Magikarp → Gyarados), então pegar a
-*linha* dele pode valer mais que os status.
+*linha* dele pode valer mais que os status (e o custo de PD reflete isso).
 
-Depois, **duelos 1v1 automáticos e animados**: seu campeão montado enfrenta um rival (um Pokémon
-"puro") golpe a golpe, com tipos/efetividade, crítico e a **Habilidade** que você escolheu. Você
-**evolui automaticamente** a cada rodada vencida (o sprite muda). Você vê o rival antes de cada duelo.
+Depois, **duelos 1v1 automáticos e animados**: seu campeão montado enfrenta um rival golpe a golpe,
+com tipos/efetividade, crítico e a **Habilidade** que você escolheu — com **investida, tremor de
+impacto e números de dano flutuantes**. Você **evolui automaticamente** a cada rodada vencida (o
+sprite muda). Na arena você vê o rival, suas barras de status comparadas e o **confronto de tipos**
+antes do duelo.
+
+**Dificuldade que acompanha você.** O rival não é mais um Pokémon aleatório fraco: a cada rodada ele é
+escolhido para ter **poder próximo ao seu** (escalado por `difficulty`), subindo até a **GRANDE FINAL**,
+onde o Mestre da Liga luta **acima do seu nível** (`bossLevelBonus`). Montar bem a ficha continua
+decisivo — mas agora é uma luta de verdade, não um atropelo.
 
 ### Habilidades (8)
 
@@ -75,8 +89,9 @@ src/
   game/      # regras puras (sem React, sem DOM)
     rng.ts       # Rng + mulberry32 (PRNG semeado)
     sheet.ts     # a ficha de 7 slots: emptySlots/isComplete/takeAttribute
+    cost.ts      # o "peso" de cada atributo em PD: slotCost/canAfford/DRAFT_BUDGET + powerOf (escala do rival)
     champion.ts  # da ficha aos números: stats com habilidade, estágio por rodada, moves
-    draft.ts     # rollChoices (3 por rodada) + genRivalSheet (rival "puro")
+    draft.ts     # rollChoices (3 por rodada) + genRivalSheet (rival escalado ao seu poder)
     battle.ts    # duelo 1v1 automático imutável: buildChampion/calcDamage/aiChoose/autoTurn (+ habilidades)
   store/
     gameStore.ts # Zustand + persist: telas, ficha, rodadas de escolha, arena, duelo
